@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	pubsub "github.com/alexanderbez/pubsub-challenge"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,7 +19,7 @@ func (tm testMessage) String() string {
 }
 
 func TestPubSub(t *testing.T) {
-	// zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 
 	var (
 		wg1 sync.WaitGroup
@@ -62,16 +63,12 @@ func TestPubSub(t *testing.T) {
 
 		go func(wg1, wg2 *sync.WaitGroup, s <-chan pubsub.Message, pattern string, expectedMsg int) {
 			wg2.Done()
-			fmt.Println("STARTING TO CONSUME SUBSCRIPTION MESSAGES:", pattern)
 
 			i := 0
 			for range s {
 				i++
 
-				fmt.Printf("PATTERN: %s, EXPECTED: %d, CURRENT: %d\n", pattern, expectedMsg, i)
-
 				if i == expectedMsg {
-					fmt.Println("MARKING DONE:", pattern)
 					wg1.Done()
 				}
 			}
@@ -90,6 +87,5 @@ func TestPubSub(t *testing.T) {
 
 	// All groups should finish assuming they received total number of expected
 	// messages.
-	fmt.Println("WAITING TO FINISH")
 	wg2.Wait()
 }
