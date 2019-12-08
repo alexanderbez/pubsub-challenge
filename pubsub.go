@@ -12,7 +12,7 @@ func init() {
 }
 
 type (
-	// Messages defines a type alias for an interface and represents arbitrary
+	// Message defines a type alias for an interface and represents arbitrary
 	// messages that a Publisher may publish and a Consumer may receive.
 	Message interface {
 		fmt.Stringer

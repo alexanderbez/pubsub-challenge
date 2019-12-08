@@ -1,5 +1,9 @@
 # PubSub Challenge
 
+[![GolangCI](https://golangci.com/badges/github.com/alexanderbez/pubsub-challenge.svg)](https://golangci.com)
+[![GoDoc](https://godoc.org/github.com/alexanderbez/pubsub-challenge?status.svg)](https://godoc.org/github.com/alexanderbez/pubsub-challenge)
+[![Go Report Card](https://goreportcard.com/badge/github.com/alexanderbez/pubsub-challenge)](https://goreportcard.com/report/github.com/alexanderbez/pubsub-challenge)
+
 ## Problem
 
 Create a new publisher-subscriber (PubSub) that allows multiple producers
