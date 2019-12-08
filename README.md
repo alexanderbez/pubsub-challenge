@@ -1,0 +1,62 @@
+# PubSub Challenge
+
+## Problem
+
+Create a new publisher-subscriber (PubSub) that allows multiple producers
+publishing to multiple consumers. The consumers can subscribe to messages by
+specifying a topic pattern (supporting wildcards) that it wants to receive
+messages from, and producers can only write to a specific topic (i.e one to many).
+
+For example, two consumers where one subscribes to `cosmosA-events-eventA` and
+another subscribes to `cosmosA-events-*` will both receive the message that was
+published by producers writing to `cosmosA-events-eventA`.
+
+A consumer can start subscribing to events before there is any publisher, and
+will start to receive data once a publisher is created and publishes to that
+topic.
+
+## Solution
+
+There exists a `PubSub` implementation, `BasePubSub`. The `BasePubSub` allows for
+any number of producers to be registered. Each producer may publish messages to
+a single topic. Internally, the `BasePubSub` creates a single unique consumer, i.e.
+each producer has a single consumer. Clients may then subscribe to messages using
+a match pattern. For each matching topic, the subscription will be added to the
+consumers list of subscriptions and those messages will be sent out on each
+subscription channel.
+
+Note, the `BaseProducer` type allows for buffered publishing. If the buffer/queue is
+full, the producer will error on `Publish`.
+
+e.g.
+
+```ascii
++------------------+         +----------+             +----------------------+
+| producer (a.b.c) +-------->+ consumer +------------>+ subscription (*.*.c) |
++------------------+         +----------+             +----------------------+
+                                              +-------^
+                                              |
+                                              |
++------------------+         +----------+     |       +----------------------+
+| producer (x.y.c) +-------->+ consumer +-----+------>+ subscription (x.y.*) |
++------------------+         +----------+             +----------------------+
+
+
++------------------+         +----------+             +----------------------+
+|producer(foo/bar) +-------->+ consumer +------------>+ subscription (foo/*) |
++------------------+         +----------+             +----------------------+
+
+```
+
+### Potential Improvements
+
+* Consider returning a richer concrete type for `Subscribe` (e.g the ability to close).
+* Consider enabling subscriptions to receive messages when a matching topic has
+  been created after the subscription.
+* Consider use of a modified radix trie which would provide significant improvement
+  if the number of producers is extremely large.
+
+## Assumptions
+
+Valid topics consist of arbitrary-length alphanumeric characters separated by a
+valid deliminator: `/`,`.`,`-`.

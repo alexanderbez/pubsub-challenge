@@ -1,0 +1,95 @@
+package pubsub_test
+
+import (
+	"fmt"
+	"sync"
+	"testing"
+
+	pubsub "github.com/alexanderbez/pubsub-challenge"
+	"github.com/stretchr/testify/require"
+)
+
+type testMessage struct {
+	topic, data string
+}
+
+func (tm testMessage) String() string {
+	return tm.data
+}
+
+func TestPubSub(t *testing.T) {
+	// zerolog.SetGlobalLevel(zerolog.InfoLevel)
+
+	var (
+		wg1 sync.WaitGroup
+		wg2 sync.WaitGroup
+	)
+
+	ps := pubsub.NewBasePubSub()
+
+	producers := []struct {
+		topic    string
+		producer pubsub.Producer
+		numMsgs  int
+	}{
+		{"a.b.c", pubsub.NewBaseProducer("a.b.c", 1000), 100},
+		{"x.y.c", pubsub.NewBaseProducer("x.y.c", 1000), 50},
+		{"foo/bar", pubsub.NewBaseProducer("foo/bar", 1000), 25},
+	}
+
+	subscriptions := []struct {
+		pattern     string
+		expectedMsg int
+	}{
+		{"*.*.c", 150},
+		{"x.y.*", 50},
+		{"foo/*", 25},
+	}
+
+	// register all producers
+	for _, p := range producers {
+		require.NoError(t, ps.RegisterProducer(p.topic, p.producer))
+	}
+
+	// Range over subscriptions and verify we receive the total number of expected
+	// messages for each pattern.
+	for _, sub := range subscriptions {
+		s := ps.Subscribe(sub.pattern)
+		require.NotNil(t, s)
+
+		wg1.Add(1)
+		wg2.Add(1)
+
+		go func(wg1, wg2 *sync.WaitGroup, s <-chan pubsub.Message, pattern string, expectedMsg int) {
+			wg2.Done()
+			fmt.Println("STARTING TO CONSUME SUBSCRIPTION MESSAGES:", pattern)
+
+			i := 0
+			for range s {
+				i++
+
+				fmt.Printf("PATTERN: %s, EXPECTED: %d, CURRENT: %d\n", pattern, expectedMsg, i)
+
+				if i == expectedMsg {
+					fmt.Println("MARKING DONE:", pattern)
+					wg1.Done()
+				}
+			}
+		}(&wg1, &wg2, s, sub.pattern, sub.expectedMsg)
+	}
+
+	wg2.Wait()
+
+	// publish messages for each producer
+	for _, p := range producers {
+		for i := 0; i < p.numMsgs; i++ {
+			msg := testMessage{p.topic, fmt.Sprintf("%s-%d", p.topic, i)}
+			require.NoError(t, p.producer.Publish(msg))
+		}
+	}
+
+	// All groups should finish assuming they received total number of expected
+	// messages.
+	fmt.Println("WAITING TO FINISH")
+	wg2.Wait()
+}
