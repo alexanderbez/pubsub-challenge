@@ -23,11 +23,10 @@ topic.
 
 There exists a `PubSub` implementation, `BasePubSub`. The `BasePubSub` allows for
 any number of producers to be registered. Each producer may publish messages to
-a single unique topic. Internally, the `BasePubSub` creates a single unique consumer
-per producer, i.e. each producer has a single consumer. Clients may then subscribe
-to messages using a match pattern. For each matching topic, the subscription will
-be added to the consumers list of subscriptions and those messages will be sent
-out on each subscription channel (which is returned to the client).
+a single unique topic. Internally, the `BasePubSub` maintains a list of subscribers.
+Clients may then subscribe to messages using a topic pattern. For each matching
+topic, the subscription will be added to the producer's list of subscriptions and
+those messages will be sent out on each subscription channel (which is returned to the client).
 
 Note, the `BaseProducer` type allows for buffered publishing. If the buffer/queue is
 full, the producer will error on `Publish`.
@@ -35,28 +34,26 @@ full, the producer will error on `Publish`.
 e.g.
 
 ```ascii
-+------------------+         +----------+             +----------------------+
-| producer (a.b.c) +-------->+ consumer +------------>+ subscription (*.*.c) |
-+------------------+         +----------+             +----------------------+
-                                              +-------^
-                                              |
-                                              |
-+------------------+         +----------+     |       +----------------------+
-| producer (x.y.c) +-------->+ consumer +-----+------>+ subscription (x.y.*) |
-+------------------+         +----------+             +----------------------+
++------------------+             +----------------------+
+| producer (a.b.c) +------------>+ subscription (*.*.c) |
++------------------+             +----------------------+
+                         +-------^
+                         |
+                         |
++------------------+     |       +----------------------+
+| producer (x.y.c) +-----+------>+ subscription (x.y.*) |
++------------------+             +----------------------+
 
 
-+------------------+         +----------+             +----------------------+
-|producer(foo/bar) +-------->+ consumer +------------>+ subscription (foo/*) |
-+------------------+         +----------+             +----------------------+
++------------------+             +----------------------+
+|producer(foo/bar) +------------>+ subscription (foo/*) |
++------------------+             +----------------------+
 
 ```
 
 ### Potential Improvements
 
 * Consider returning a richer concrete type for `Subscribe` (e.g the ability to close).
-* Consider enabling subscriptions to receive messages when a matching topic has
-  been created after the subscription.
 * Consider use of a modified radix trie which would provide significant improvement
   if the number of producers is extremely large.
 

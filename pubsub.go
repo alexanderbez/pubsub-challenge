@@ -41,14 +41,12 @@ type (
 		mu sync.Mutex
 
 		producers map[string]*BaseProducer
-		consumers map[string]*BaseConsumer
 	}
 )
 
 func NewBasePubSub() PubSub {
 	return &BasePubSub{
 		producers: make(map[string]*BaseProducer),
-		consumers: make(map[string]*BaseConsumer),
 	}
 }
 
@@ -73,10 +71,8 @@ func (bps *BasePubSub) RegisterProducer(topic string, producer Producer) error {
 		return fmt.Errorf("unexpected producer type: %T", producer)
 	}
 
-	consumer := NewBaseConsumer(baseProducer.ch)
-	go func() { consumer.listen() }()
+	go func() { baseProducer.loopBroadcast() }()
 
-	bps.consumers[topic] = consumer
 	bps.producers[topic] = baseProducer
 
 	return nil
@@ -96,12 +92,13 @@ func (bps *BasePubSub) Subscribe(topicPattern string) <-chan Message {
 
 	subscription := make(chan Message)
 
-	for topic := range bps.producers {
+	for topic, producer := range bps.producers {
 		// TODO: Use of a modified radix trie would provide significant improvement if
 		// the number of producers is extremely large.
 		if MatchTopic(topic, topicPattern) {
-			consumer := bps.consumers[topic]
-			go func() { consumer.AddSubscription(subscription) }()
+			go func(producer *BaseProducer) {
+				producer.AddSubscription(subscription)
+			}(producer)
 		}
 	}
 
