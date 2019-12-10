@@ -45,7 +45,7 @@ func TestPubSub(t *testing.T) {
 	}{
 		{"*.*.c", 150},
 		{"x.y.*", 50},
-		{"foo/*", 25},
+		{"foo/*", 125},
 	}
 
 	// register all producers
@@ -90,6 +90,22 @@ func TestPubSub(t *testing.T) {
 			msg := testMessage{p.topic, fmt.Sprintf("%s-%d", p.topic, i)}
 			require.NoError(t, p.producer.Publish(msg))
 		}
+	}
+
+	// Create a new producer and publish messages which should match against an
+	// existing subscription (subscriptions[2]).
+	newTopic := "foo/baz"
+	newProducer := pubsub.NewBaseProducer(newTopic, 1000)
+	require.NoError(t, ps.RegisterProducer(newTopic, newProducer))
+
+	for newProducer.TotalSubscriptions() != 1 {
+		// Will till the goroutine scheduler schedules the subscription addition to
+		// the new producer.
+	}
+
+	for i := 0; i < 100; i++ {
+		msg := testMessage{newTopic, fmt.Sprintf("%s-%d", newTopic, i)}
+		require.NoError(t, newProducer.Publish(msg))
 	}
 
 	// All groups should finish assuming they received total number of expected
