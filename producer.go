@@ -12,6 +12,7 @@ type (
 	// Producer defines a contract which a producer in a pubsub model must implement.
 	Producer interface {
 		Publish(msg Message) error
+		TotalSubscriptions() int
 	}
 
 	// BaseProducer implements the Producer interface by implementing basic publishing
