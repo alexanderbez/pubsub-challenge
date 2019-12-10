@@ -46,16 +46,39 @@ e.g.
 +------------------+             +----------------------+
 
 
-+------------------+             +----------------------+
-|producer(foo/bar) +------------>+ subscription (foo/*) |
-+------------------+             +----------------------+
++--------------------+           +----------------------+
+| producer (foo/bar) +---------->+ subscription (foo/*) |
++--------------------+           +----------------------+
+```
+
+Here we have three producers, where `a.b.c` and `foo/bar` both have a single
+subscription and `x.y.c` has two subscriptions.
+
+Note, producers can be registered and added to the `PubSub` server after a matching
+subscription(s) already exists. In such a case, the new producer will have the
+matching subscriptions added to its list of subscriptions.
+
+e.g.
+
+When adding a new producer `foo/baz`, it'll match the already existing subscription
+`foo/*` which the producer `foo/bar` contains.
+
+```ascii
+...
+
++--------------------+           +----------------------+
+| producer (foo/bar) +---------->+ subscription (foo/*) |
++--------------------+           +----------------------+
+                           +-----^
+                           |
++--------------------+     |
+| producer (foo/baz) +-----+
++--------------------+
 ```
 
 ### Potential Improvements
 
 * Consider returning a richer concrete type for `Subscribe` (e.g the ability to close).
-* Consider use of a modified radix trie which would provide significant improvement
-  if the number of producers is extremely large.
 
 ## Assumptions
 
