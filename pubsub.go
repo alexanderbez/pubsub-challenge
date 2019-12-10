@@ -40,13 +40,15 @@ type (
 	BasePubSub struct {
 		mu sync.Mutex
 
-		producers map[string]*BaseProducer
+		producers         map[string]*BaseProducer
+		idleSubscriptions map[string]subscription
 	}
 )
 
 func NewBasePubSub() PubSub {
 	return &BasePubSub{
-		producers: make(map[string]*BaseProducer),
+		producers:         make(map[string]*BaseProducer),
+		idleSubscriptions: make(map[string]subscription),
 	}
 }
 
@@ -73,9 +75,19 @@ func (bps *BasePubSub) RegisterProducer(topic string, producer Producer) error {
 
 	go func() { baseProducer.loopBroadcast() }()
 
+	bps.matchNewProducer(topic, baseProducer)
 	bps.producers[topic] = baseProducer
 
 	return nil
+}
+
+// matchNewProducer will check to see if any existing subscriptions match against
+// a new producer's topic, where if they match, the subscription will be added
+// to the new producer.
+func (bps *BasePubSub) matchNewProducer(topic string, newProducer *BaseProducer) {
+	for _, producer := range bps.producers {
+		producer.matchSubscription(topic, newProducer)
+	}
 }
 
 // Subscribe will create and return a new subscription (read-only Message channel)
@@ -96,7 +108,10 @@ func (bps *BasePubSub) Subscribe(topicPattern string) <-chan Message {
 	bps.mu.Lock()
 	defer bps.mu.Unlock()
 
-	subscription := make(chan Message)
+	subscription := subscription{
+		ch:      make(chan Message),
+		pattern: topicPattern,
+	}
 
 	for topic, producer := range bps.producers {
 		// TODO: Use of a modified radix trie would provide significant improvement
@@ -105,10 +120,10 @@ func (bps *BasePubSub) Subscribe(topicPattern string) <-chan Message {
 			// Add the subscription to the producer in a goroutine as to not have the
 			// Subscribe call hang for longer than necessary.
 			go func(producer *BaseProducer) {
-				producer.AddSubscription(subscription)
+				producer.addSubscription(subscription)
 			}(producer)
 		}
 	}
 
-	return subscription
+	return subscription.ch
 }

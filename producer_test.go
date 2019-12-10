@@ -20,13 +20,3 @@ func TestBaseProducer_Publish(t *testing.T) {
 
 	require.Error(t, p.Publish(testMessage{"a.b.c", "test"}))
 }
-
-func TestBaseProducer_AddSubscription(t *testing.T) {
-	p := pubsub.NewBaseProducer("test", 1)
-	bp, ok := p.(*pubsub.BaseProducer)
-	require.True(t, ok)
-
-	require.Equal(t, bp.TotalSubscriptions(), 0)
-	bp.AddSubscription(nil)
-	require.Equal(t, bp.TotalSubscriptions(), 1)
-}

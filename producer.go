@@ -15,6 +15,13 @@ type (
 		TotalSubscriptions() int
 	}
 
+	// subscription defines a type for managing a subscription. It contains the
+	// subscription's topic pattern and the read-only Message channel.
+	subscription struct {
+		ch      chan Message
+		pattern string
+	}
+
 	// BaseProducer implements the Producer interface by implementing basic publishing
 	// capabilities on a single topic.
 	BaseProducer struct {
@@ -22,14 +29,14 @@ type (
 
 		logger        zerolog.Logger
 		ch            chan Message
-		subscriptions []chan<- Message
+		subscriptions []subscription
 	}
 )
 
 func NewBaseProducer(topic string, capacity uint) Producer {
 	return &BaseProducer{
 		ch:            make(chan Message, capacity),
-		subscriptions: make([]chan<- Message, 0),
+		subscriptions: make([]subscription, 0),
 		logger:        log.With().Str("module", "producer").Str("topic", topic).Logger(),
 	}
 }
@@ -42,14 +49,6 @@ func (bp *BaseProducer) TotalSubscriptions() int {
 	return len(bp.subscriptions)
 }
 
-// AddSubscription adds a subscription (read-only Message channel) to the
-// producer.
-func (bp *BaseProducer) AddSubscription(s chan<- Message) {
-	bp.mu.Lock()
-	defer bp.mu.Unlock()
-	bp.subscriptions = append(bp.subscriptions, s)
-}
-
 // Publish will attempt to publish the provided Message. It will return an error
 // if the publisher's internal queue is full.
 func (bp *BaseProducer) Publish(msg Message) error {
@@ -57,8 +56,30 @@ func (bp *BaseProducer) Publish(msg Message) error {
 	case bp.ch <- msg:
 		bp.logger.Debug().Str("message", msg.String()).Str("action", "publishing message").Msg("")
 		return nil
+
 	default:
 		return fmt.Errorf("publisher queue is full; failed to publish message %X; please try again", msg)
+	}
+}
+
+// addSubscription adds a subscription (read-only Message channel) to the
+// producer.
+func (bp *BaseProducer) addSubscription(s subscription) {
+	bp.mu.Lock()
+	defer bp.mu.Unlock()
+	bp.subscriptions = append(bp.subscriptions, s)
+}
+
+// matchSubscription checks if a new producer's topic matches against any
+// subscription of bp, where upon match, the subscription is added to the new
+// producer.
+func (bp *BaseProducer) matchSubscription(topic string, newProducer *BaseProducer) {
+	for _, subscription := range bp.subscriptions {
+		if MatchTopic(topic, subscription.pattern) {
+			go func(newProducer *BaseProducer) {
+				newProducer.addSubscription(subscription)
+			}(newProducer)
+		}
 	}
 }
 
@@ -71,10 +92,10 @@ func (bp *BaseProducer) loopBroadcast() {
 		bp.logger.Debug().Str("message", msg.String()).Str("action", "received message from producer").Msg("")
 
 		for _, s := range bp.subscriptions {
-			go func(s chan<- Message, msg Message) {
+			go func(s chan Message, msg Message) {
 				s <- msg
 				bp.logger.Debug().Str("message", msg.String()).Str("action", "sent message to subscription").Msg("")
-			}(s, msg)
+			}(s.ch, msg)
 		}
 
 		bp.mu.RUnlock()
