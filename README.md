@@ -23,10 +23,11 @@ topic.
 
 There exists a `PubSub` implementation, `BasePubSub`. The `BasePubSub` allows for
 any number of producers to be registered. Each producer may publish messages to
-a single unique topic. Internally, the `BasePubSub` maintains a list of subscribers.
-Clients may then subscribe to messages using a topic pattern. For each matching
-topic, the subscription will be added to the producer's list of subscriptions and
-those messages will be sent out on each subscription channel (which is returned to the client).
+a single unique topic. Internally, each producer maintains a list of subscribers
+(i.e. one to many). Clients may then subscribe to messages using a topic pattern.
+For each matching topic, the subscription will be added to the producer's list of
+subscriptions and those messages will be sent out on each subscription channel
+(which is returned to the client).
 
 Note, the `BaseProducer` type allows for buffered publishing. If the buffer/queue is
 full, the producer will error on `Publish`.
@@ -48,7 +49,6 @@ e.g.
 +------------------+             +----------------------+
 |producer(foo/bar) +------------>+ subscription (foo/*) |
 +------------------+             +----------------------+
-
 ```
 
 ### Potential Improvements
