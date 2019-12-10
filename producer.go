@@ -72,7 +72,6 @@ func (bp *BaseProducer) loopBroadcast() {
 
 		for _, s := range bp.subscriptions {
 			go func(s chan<- Message, msg Message) {
-				// bp.logger.Debug().Str("message", msg.String()).Str("action", "pre-sent message to subscription").Msg("")
 				s <- msg
 				bp.logger.Debug().Str("message", msg.String()).Str("action", "sent message to subscription").Msg("")
 			}(s, msg)

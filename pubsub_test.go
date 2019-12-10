@@ -29,13 +29,14 @@ func TestPubSub(t *testing.T) {
 	ps := pubsub.NewBasePubSub()
 
 	producers := []struct {
-		topic    string
-		producer pubsub.Producer
-		numMsgs  int
+		topic       string
+		producer    pubsub.Producer
+		subscribers int
+		numMsgs     int
 	}{
-		{"a.b.c", pubsub.NewBaseProducer("a.b.c", 1000), 100},
-		{"x.y.c", pubsub.NewBaseProducer("x.y.c", 1000), 50},
-		{"foo/bar", pubsub.NewBaseProducer("foo/bar", 1000), 25},
+		{"a.b.c", pubsub.NewBaseProducer("a.b.c", 1000), 1, 100},
+		{"x.y.c", pubsub.NewBaseProducer("x.y.c", 1000), 2, 50},
+		{"foo/bar", pubsub.NewBaseProducer("foo/bar", 1000), 1, 25},
 	}
 
 	subscriptions := []struct {
@@ -70,6 +71,7 @@ func TestPubSub(t *testing.T) {
 
 				if i == expectedMsg {
 					wg1.Done()
+					return
 				}
 			}
 		}(&wg1, &wg2, s, sub.pattern, sub.expectedMsg)
@@ -79,6 +81,11 @@ func TestPubSub(t *testing.T) {
 
 	// publish messages for each producer
 	for _, p := range producers {
+		for p.producer.TotalSubscriptions() != p.subscribers {
+			// Wait till goroutine scheduler added expected subscriptions. This is only
+			// needed for deterministic testing.
+		}
+
 		for i := 0; i < p.numMsgs; i++ {
 			msg := testMessage{p.topic, fmt.Sprintf("%s-%d", p.topic, i)}
 			require.NoError(t, p.producer.Publish(msg))
@@ -87,5 +94,5 @@ func TestPubSub(t *testing.T) {
 
 	// All groups should finish assuming they received total number of expected
 	// messages.
-	wg2.Wait()
+	wg1.Wait()
 }
