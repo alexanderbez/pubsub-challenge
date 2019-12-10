@@ -84,8 +84,14 @@ func (bps *BasePubSub) RegisterProducer(topic string, producer Producer) error {
 // topics exist for that pattern, the subscription will never receive any
 // Messages even if a matching topic is created later.
 //
-// TODO: Consider enabling subscriptions to receive messages when a matching
-// topic has been created after the subscription.
+// Note, there is no guarantee when the subscription will be added to any given
+// producer so the client must not rely on timing. This allows Subscribe to not
+// take abnormal amount of time when adding subscriptions.
+//
+// TODO:
+// 1. Allow subscriptions to be added when a matching producer is registered at
+// a later time.
+// 2. Allow newly registered producers to match against existing subscriptions
 func (bps *BasePubSub) Subscribe(topicPattern string) <-chan Message {
 	bps.mu.Lock()
 	defer bps.mu.Unlock()
@@ -93,9 +99,11 @@ func (bps *BasePubSub) Subscribe(topicPattern string) <-chan Message {
 	subscription := make(chan Message)
 
 	for topic, producer := range bps.producers {
-		// TODO: Use of a modified radix trie would provide significant improvement if
-		// the number of producers is extremely large.
+		// TODO: Use of a modified radix trie would provide significant improvement
+		// if the number of producers is extremely large.
 		if MatchTopic(topic, topicPattern) {
+			// Add the subscription to the producer in a goroutine as to not have the
+			// Subscribe call hang for longer than necessary.
 			go func(producer *BaseProducer) {
 				producer.AddSubscription(subscription)
 			}(producer)
