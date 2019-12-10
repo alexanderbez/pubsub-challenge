@@ -54,14 +54,14 @@ e.g.
 Here we have three producers, where `a.b.c` and `foo/bar` both have a single
 subscription and `x.y.c` has two subscriptions.
 
-Note, producers can be registered and added to the `PubSub` server after a matching
+Note, producers can be registered and added to the `PubSub` server _after_ a matching
 subscription(s) already exists. In such a case, the new producer will have the
-matching subscriptions added to its list of subscriptions.
+matching subscription(s) added to its list of subscriptions.
 
 e.g.
 
 When adding a new producer `foo/baz`, it'll match the already existing subscription
-`foo/*` which the producer `foo/bar` contains.
+`foo/*` which the producer `foo/bar` has.
 
 ```ascii
 ...
