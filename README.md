@@ -86,6 +86,8 @@ When adding a new producer `foo/baz`, it'll match the already existing subscript
 ### Potential Improvements
 
 * Consider returning a richer concrete type for `Subscribe` (e.g the ability to close).
+* Consider using a modified radix trie to improve topic matching when the number
+  of producers is significantly large.
 
 ## Assumptions
 
