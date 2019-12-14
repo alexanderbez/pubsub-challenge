@@ -49,19 +49,26 @@ e.g.
 +--------------------+           +----------------------+
 | producer (foo/bar) +---------->+ subscription (foo/*) |
 +--------------------+           +----------------------+
+
+
+                                 +----------------------+
+                                 + subscription (*/baz) |
+                                 +----------------------+
 ```
 
 Here we have three producers, where `a.b.c` and `foo/bar` both have a single
 subscription and `x.y.c` has two subscriptions.
 
-Note, producers can be registered and added to the `PubSub` server _after_ a matching
-subscription(s) already exists. In such a case, the new producer will have the
-matching subscription(s) added to its list of subscriptions.
+Note, producers can be registered and added to the `BasePubSub` server _after_ a
+matching subscription(s) already exists. These subscriptions can either be tied to
+existing producers or be "idle" -- subscriptions which currently do not have any
+matching producers. In such a case, the new producer will have the matching
+subscription(s) added to it's list of subscriptions.
 
 e.g.
 
 When adding a new producer `foo/baz`, it'll match the already existing subscription
-`foo/*` which the producer `foo/bar` has.
+`foo/*` which the producer `foo/bar` has and against the "idle" subscription `*/baz`.
 
 ```ascii
 ...
@@ -71,9 +78,9 @@ When adding a new producer `foo/baz`, it'll match the already existing subscript
 +--------------------+           +----------------------+
                            +-----^
                            |
-+--------------------+     |
-| producer (foo/baz) +-----+
-+--------------------+
++--------------------+     |      +----------------------+
+| producer (foo/baz) +-----+----->+ subscription (*/baz) |
++--------------------+            +----------------------+
 ```
 
 ### Potential Improvements

@@ -77,6 +77,7 @@ func (bps *BasePubSub) RegisterProducer(topic string, producer Producer) error {
 
 	bps.matchNewProducer(topic, baseProducer)
 	bps.producers[topic] = baseProducer
+	bps.subscribeIdle()
 
 	return nil
 }
@@ -90,6 +91,28 @@ func (bps *BasePubSub) matchNewProducer(topic string, newProducer *BaseProducer)
 	}
 }
 
+// subscribeIdle checks to see if any (idle) subscriptions can be matched and
+// subscribed against existing producers.
+func (bps *BasePubSub) subscribeIdle() {
+	for pattern, idleSub := range bps.idleSubscriptions {
+		var matched bool
+
+		for topic, producer := range bps.producers {
+			if MatchTopic(topic, pattern) {
+				matched = true
+
+				go func(producer *BaseProducer, idleSub subscription) {
+					producer.addSubscription(idleSub)
+				}(producer, idleSub)
+			}
+		}
+
+		if matched {
+			delete(bps.idleSubscriptions, pattern)
+		}
+	}
+}
+
 // Subscribe will create and return a new subscription (read-only Message channel)
 // for a topic pattern. It will find all matching topics (if any exist) where
 // the subscription will receive Messages from each associated Producer. If no
@@ -99,30 +122,33 @@ func (bps *BasePubSub) matchNewProducer(topic string, newProducer *BaseProducer)
 // Note, there is no guarantee when the subscription will be added to any given
 // producer so the client must not rely on timing. This allows Subscribe to not
 // take abnormal amount of time when adding subscriptions.
-//
-// TODO:
-// 1. Allow subscriptions to be added when a matching producer is registered at
-// a later time.
-// 2. Allow newly registered producers to match against existing subscriptions
-func (bps *BasePubSub) Subscribe(topicPattern string) <-chan Message {
+func (bps *BasePubSub) Subscribe(pattern string) <-chan Message {
 	bps.mu.Lock()
 	defer bps.mu.Unlock()
 
 	subscription := subscription{
 		ch:      make(chan Message),
-		pattern: topicPattern,
+		pattern: pattern,
 	}
+
+	var matched bool
 
 	for topic, producer := range bps.producers {
 		// TODO: Use of a modified radix trie would provide significant improvement
 		// if the number of producers is extremely large.
-		if MatchTopic(topic, topicPattern) {
+		if MatchTopic(topic, pattern) {
+			matched = true
+
 			// Add the subscription to the producer in a goroutine as to not have the
 			// Subscribe call hang for longer than necessary.
 			go func(producer *BaseProducer) {
 				producer.addSubscription(subscription)
 			}(producer)
 		}
+	}
+
+	if !matched {
+		bps.idleSubscriptions[pattern] = subscription
 	}
 
 	return subscription.ch

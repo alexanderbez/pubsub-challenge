@@ -46,6 +46,7 @@ func TestPubSub(t *testing.T) {
 		{"*.*.c", 150},
 		{"x.y.*", 50},
 		{"foo/*", 125},
+		{"*/baz", 100},
 	}
 
 	// register all producers
@@ -92,13 +93,13 @@ func TestPubSub(t *testing.T) {
 		}
 	}
 
-	// Create a new producer and publish messages which should match against an
-	// existing subscription (subscriptions[2]).
+	// Create a new producer and publish messages which should match against two
+	// existing subscription, one of which was idle (subscriptions[2] & subscriptions[3]).
 	newTopic := "foo/baz"
 	newProducer := pubsub.NewBaseProducer(newTopic, 1000)
 	require.NoError(t, ps.RegisterProducer(newTopic, newProducer))
 
-	for newProducer.TotalSubscriptions() != 1 {
+	for newProducer.TotalSubscriptions() != 2 {
 		// Will till the goroutine scheduler schedules the subscription addition to
 		// the new producer.
 	}
